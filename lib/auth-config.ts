@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import GithubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -192,6 +193,9 @@ function prismaIntIdAdapter(): Adapter {
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
+const githubClientId = process.env.GITHUB_CLIENT_ID;
+const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
+
 const looksLikePlaceholder = (value: string | undefined) => {
   if (!value) return true;
   const normalized = value.trim().toLowerCase();
@@ -208,6 +212,12 @@ const isGoogleConfigured =
   !!googleClientSecret &&
   !looksLikePlaceholder(googleClientId) &&
   !looksLikePlaceholder(googleClientSecret);
+
+const isGithubConfigured =
+  !!githubClientId &&
+  !!githubClientSecret &&
+  !looksLikePlaceholder(githubClientId) &&
+  !looksLikePlaceholder(githubClientSecret);
 
 const googleTokenVerifier = isGoogleConfigured
   ? new OAuth2Client({ clientId: googleClientId! })
@@ -263,6 +273,12 @@ if ((googleClientId || googleClientSecret) && !isGoogleConfigured) {
   );
 }
 
+if ((githubClientId || githubClientSecret) && !isGithubConfigured) {
+  console.warn(
+    "[auth] GitHub OAuth is not fully configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to real values (not placeholders), then restart the dev server."
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   debug: process.env.NEXTAUTH_DEBUG === "true",
   logger: {
@@ -308,6 +324,15 @@ export const authOptions: NextAuthOptions = {
           }),
         ]
       : []),
+    ...(isGithubConfigured
+      ? [
+          GithubProvider({
+            clientId: githubClientId!,
+            clientSecret: githubClientSecret!,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -327,17 +352,17 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        // Security: never allow password login for Google-only accounts.
-        // A "Google-only" account has no local passwordHash, but does have a linked Google provider account.
+        // Security: never allow password login for OAuth-only accounts.
+        // An "OAuth-only" account has no local passwordHash, but does have a linked provider account.
         if (!user.passwordHash) {
-          const hasGoogleAccount =
+          const hasOAuthAccount =
             (await prisma.account.count({
-              where: { userId: user.id, provider: "google" },
+              where: { userId: user.id, provider: { in: ["google", "github"] } },
             })) > 0;
 
-          if (hasGoogleAccount) {
+          if (hasOAuthAccount) {
             throw new Error(
-              "Email already exists. Please sign in with Google."
+              "Email already exists. Please sign in with your connected account (Google or GitHub)."
             );
           }
 
@@ -433,6 +458,33 @@ export const authOptions: NextAuthOptions = {
     },
     async signIn({ user, account, profile }) {
       // If signing in with OAuth and user exists, allow linking
+      if (account?.provider === "github") {
+        try {
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+          });
+
+          if (existingUser) {
+            // Update avatar if from GitHub
+            const githubProfile = profile as { avatar_url?: string } | undefined;
+            if (githubProfile?.avatar_url && !(existingUser as any).image) {
+              await prisma.user.update({
+                where: { id: existingUser.id },
+                data: { image: githubProfile.avatar_url },
+              });
+            }
+          }
+        } catch (err: any) {
+          console.error("[auth] github oauth callback failed", {
+            message: err?.message,
+            code: err?.code,
+            providerAccountId: account?.providerAccountId,
+            hasUserEmail: !!user?.email,
+          });
+          throw err;
+        }
+      }
+
       if (account?.provider === "google") {
         try {
           // Security: always verify Google ID token server-side.

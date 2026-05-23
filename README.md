@@ -229,6 +229,8 @@ Add these in **Vercel Dashboard → Settings → Environment Variables**:
 | `JWT_SECRET` | ✅ Always | JWT signing secret |
 | `GOOGLE_CLIENT_ID` | ⚡ OAuth | Only if using Google login |
 | `GOOGLE_CLIENT_SECRET` | ⚡ OAuth | Only if using Google login |
+| `GITHUB_CLIENT_ID` | ⚡ OAuth | Only if using GitHub login |
+| `GITHUB_CLIENT_SECRET` | ⚡ OAuth | Only if using GitHub login |
 | `GITHUB_APP_ID` | ⚡ PR Reviews | Only if using GitHub App integration |
 | `GITHUB_APP_PRIVATE_KEY` | ⚡ PR Reviews | Only if using GitHub App integration |
 | `GITHUB_WEBHOOK_SECRET` | ⚡ PR Reviews | Only if using GitHub webhooks |
@@ -268,6 +270,8 @@ firebase apphosting:secrets:set nextauth-url
 firebase apphosting:secrets:set nextauth-secret
 firebase apphosting:secrets:set google-client-id
 firebase apphosting:secrets:set google-client-secret
+firebase apphosting:secrets:set github-client-id
+firebase apphosting:secrets:set github-client-secret
 ```
 
 2. Deploy:
@@ -293,6 +297,8 @@ firebase deploy
 | `NEXTAUTH_SECRET` | ✅ Always | Session/JWT signing secret (generate with `openssl rand -base64 32`) |
 | `GOOGLE_CLIENT_ID` | ⚡ OAuth | Google OAuth client id |
 | `GOOGLE_CLIENT_SECRET` | ⚡ OAuth | Google OAuth client secret |
+| `GITHUB_CLIENT_ID` | ⚡ OAuth | GitHub OAuth client id |
+| `GITHUB_CLIENT_SECRET` | ⚡ OAuth | GitHub OAuth client secret |
 | `GITHUB_APP_ID` | ⚡ PR Reviews | GitHub App ID |
 | `GITHUB_APP_PRIVATE_KEY` | ⚡ PR Reviews | GitHub App private key (PEM format) |
 | `GITHUB_WEBHOOK_SECRET` | ⚡ PR Reviews | GitHub webhook secret |
